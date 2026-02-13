@@ -14,46 +14,52 @@ st.set_page_config(
 )
 
 # -------------------------------
-# CUSTOM CSS (Attractive UI)
+# PREMIUM BACKGROUND + STYLE
 # -------------------------------
 st.markdown("""
     <style>
         body {
-            background-color: #f5f7fb;
+            background: linear-gradient(to right, #f8fbff, #eef3ff);
         }
 
         .main-title {
             text-align: center;
-            font-size: 42px;
+            font-size: 45px;
             font-weight: bold;
-            color: #003366;
-            padding: 15px;
+            color: #002855;
+            padding: 20px;
         }
 
         .kpi-card {
             background: white;
-            border-radius: 15px;
+            border-radius: 18px;
             padding: 18px;
             text-align: center;
-            box-shadow: 2px 2px 12px rgba(0,0,0,0.08);
+            box-shadow: 0px 4px 18px rgba(0,0,0,0.10);
         }
 
         .kpi-value {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: bold;
-            color: #003366;
+            color: #002855;
         }
 
         .kpi-label {
-            font-size: 15px;
+            font-size: 14px;
             color: gray;
         }
 
         .insight-box {
             background: white;
             padding: 25px;
-            border-radius: 15px;
-            box-shadow: 2px 2px 12px rgba(0,0,0,0.08);
+            border-radius: 18px;
+            box-shadow: 0px 4px 18px rgba(0,0,0,0.10);
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #002855;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -65,28 +71,18 @@ st.markdown("<div class='main-title'>ONLINE SHOPPING BEHAVIOR ANALYSIS</div>",
             unsafe_allow_html=True)
 
 # -------------------------------
-# LOAD DATASET SAFELY
+# LOAD DATASET
 # -------------------------------
 @st.cache_data
 def load_data():
     csv_files = [f for f in os.listdir() if f.endswith(".csv")]
-
-    if len(csv_files) == 0:
-        st.error("❌ No CSV file found in repository!")
-        st.stop()
-
-    file_name = csv_files[0]
-    df = pd.read_csv(file_name)
-    df = df.dropna()
+    df = pd.read_csv(csv_files[0])
     df.columns = df.columns.str.strip()
     return df
 
-
 df = load_data()
 
-# -------------------------------
-# RENAME COLUMNS
-# -------------------------------
+# Rename Columns
 df.rename(columns={
     "Category": "Product_Category",
     "Payment Method": "Payment_Method",
@@ -94,37 +90,72 @@ df.rename(columns={
     "Customer ID": "Customer_ID"
 }, inplace=True)
 
-# Returning Customers
 df["Returning_Customer"] = df.duplicated("Customer_ID")
 
 # -------------------------------
-# SIDEBAR FILTERS (WORKING)
+# SIDEBAR FILTERS (USEFUL)
 # -------------------------------
-st.sidebar.header("🔍 Dashboard Filters")
+st.sidebar.markdown("<p class='sidebar-title'>🎛 Dashboard Controls</p>",
+                    unsafe_allow_html=True)
 
+# Season Filter
 season_filter = st.sidebar.multiselect(
-    "Select Season",
-    options=list(df["Season"].unique()),
-    default=list(df["Season"].unique())
+    "📅 Select Season",
+    options=df["Season"].unique(),
+    default=df["Season"].unique()
 )
 
-df = df[df["Season"].isin(season_filter)]
+# Category Filter
+category_filter = st.sidebar.multiselect(
+    "🛍 Select Category",
+    options=df["Product_Category"].unique(),
+    default=df["Product_Category"].unique()
+)
 
-st.sidebar.success("✅ Filters working smoothly!")
+# Payment Filter
+payment_filter = st.sidebar.multiselect(
+    "💳 Select Payment Method",
+    options=df["Payment_Method"].unique(),
+    default=df["Payment_Method"].unique()
+)
+
+# Sales Range Slider
+min_sales, max_sales = st.sidebar.slider(
+    "💰 Select Sales Range (USD)",
+    int(df["Sales"].min()),
+    int(df["Sales"].max()),
+    (int(df["Sales"].min()), int(df["Sales"].max()))
+)
+
+# Apply Filters
+filtered_df = df[
+    (df["Season"].isin(season_filter)) &
+    (df["Product_Category"].isin(category_filter)) &
+    (df["Payment_Method"].isin(payment_filter)) &
+    (df["Sales"] >= min_sales) &
+    (df["Sales"] <= max_sales)
+]
+
+st.sidebar.success("✅ Filters Applied Successfully!")
+
+# Download Button
+st.sidebar.download_button(
+    "⬇ Download Filtered Data",
+    filtered_df.to_csv(index=False),
+    file_name="filtered_shopping_data.csv"
+)
 
 # -------------------------------
 # KPI VALUES
 # -------------------------------
-total_customers = df["Customer_ID"].nunique()
-total_sales = df["Sales"].sum()
-returning_customers = df["Returning_Customer"].sum()
+total_customers = filtered_df["Customer_ID"].nunique()
+total_sales = filtered_df["Sales"].sum()
+returning_customers = filtered_df["Returning_Customer"].sum()
 
 cart_abandon_rate = 32
 avg_rating = 4.2
 
-# -------------------------------
-# KPI CARD FUNCTION
-# -------------------------------
+# KPI Card Function
 def kpi_card(col, label, value):
     col.markdown(f"""
         <div class="kpi-card">
@@ -145,11 +176,11 @@ kpi_card(k5, "⭐ Avg Rating", f"{avg_rating}/5")
 st.divider()
 
 # -------------------------------
-# SALES TREND + TOP CATEGORIES
+# SALES TREND + CATEGORY BAR
 # -------------------------------
 left, right = st.columns(2)
 
-monthly_sales = df.groupby("Season")["Sales"].sum().reset_index()
+monthly_sales = filtered_df.groupby("Season")["Sales"].sum().reset_index()
 
 line_fig = px.line(
     monthly_sales,
@@ -158,10 +189,9 @@ line_fig = px.line(
     markers=True,
     title="📈 Sales Trend Over Time"
 )
-
 left.plotly_chart(line_fig)
 
-cat_count = df["Product_Category"].value_counts().reset_index()
+cat_count = filtered_df["Product_Category"].value_counts().reset_index()
 cat_count.columns = ["Category", "Count"]
 
 bar_fig = px.bar(
@@ -172,18 +202,16 @@ bar_fig = px.bar(
     title="🏆 Top Product Categories",
     text="Count"
 )
-
 right.plotly_chart(bar_fig)
 
 st.divider()
 
 # -------------------------------
-# PAYMENT + FUNNEL + GENDER
+# PAYMENT PIE + FUNNEL + AGE
 # -------------------------------
 c1, c2, c3 = st.columns(3)
 
-# Payment Pie
-payment_count = df["Payment_Method"].value_counts().reset_index()
+payment_count = filtered_df["Payment_Method"].value_counts().reset_index()
 payment_count.columns = ["Method", "Count"]
 
 pie_fig = px.pie(
@@ -192,11 +220,10 @@ pie_fig = px.pie(
     values="Count",
     title="💳 Payment Methods"
 )
-
 c1.plotly_chart(pie_fig)
 
 # Funnel Chart
-stages = ["Website Visits", "Added to Cart", "Checkout Started", "Purchased"]
+stages = ["Visits", "Added to Cart", "Checkout", "Purchase"]
 values = [50000, 16000, 10800, 7500]
 
 funnel_fig = go.Figure(go.Funnel(
@@ -204,48 +231,35 @@ funnel_fig = go.Figure(go.Funnel(
     x=values,
     textinfo="value+percent initial"
 ))
-
 funnel_fig.update_layout(title="🛍 Purchase Funnel")
-
 c2.plotly_chart(funnel_fig)
 
-# Gender Chart
-gender_fig = px.histogram(
-    df,
-    x="Gender",
-    title="👤 Gender Split",
-    color="Gender"
-)
-
-c3.plotly_chart(gender_fig)
-
-st.divider()
-
-# -------------------------------
-# AGE + INSIGHTS
-# -------------------------------
-bottom1, bottom2 = st.columns(2)
-
+# Age Distribution
 age_fig = px.histogram(
-    df,
+    filtered_df,
     x="Age",
     nbins=10,
     title="📌 Customer Age Distribution"
 )
+c3.plotly_chart(age_fig)
 
-bottom1.plotly_chart(age_fig)
+st.divider()
 
-bottom2.markdown("""
+# -------------------------------
+# INSIGHTS BOX
+# -------------------------------
+st.markdown("""
     <div class="insight-box">
-    <h3 style="color:#003366;">💡 Key Insights & Recommendations</h3>
+    <h3 style="color:#002855;">💡 Key Insights & Recommendations</h3>
     <ul>
-        <li><b>High pricing</b> and <b>delivery delays</b> are major reasons for cart abandonment.</li>
-        <li>Offer discounts & deals to reduce abandonment.</li>
-        <li>Improve delivery speed to increase satisfaction.</li>
-        <li>Add more payment options for smoother checkout.</li>
+        <li>Customers abandon carts mainly due to <b>high pricing</b> and <b>delivery delays</b>.</li>
+        <li>Introduce discounts and seasonal offers to reduce abandonment.</li>
+        <li>Improve delivery speed to boost customer satisfaction.</li>
+        <li>Offer multiple payment methods for smoother checkout.</li>
     </ul>
     </div>
 """, unsafe_allow_html=True)
+
 
 
 
