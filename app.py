@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 
 # -------------------------------
 # PAGE CONFIG
@@ -20,21 +21,40 @@ st.markdown(
 )
 
 # -------------------------------
-# LOAD DATASET (CACHED)
+# SHOW FILES IN REPO (DEBUG)
+# -------------------------------
+st.write("📂 Files available in repository:")
+st.write(os.listdir())
+
+# -------------------------------
+# LOAD DATASET SAFELY
 # -------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("shopping.csv")   # ✅ keep filename small + lowercase
+
+    # Automatically find the CSV file
+    csv_files = [f for f in os.listdir() if f.endswith(".csv")]
+
+    if len(csv_files) == 0:
+        st.error("❌ No CSV file found in the repository!")
+        st.stop()
+
+    # Pick the first CSV file found
+    file_name = csv_files[0]
+
+    st.success(f"✅ Dataset Loaded: {file_name}")
+
+    df = pd.read_csv(file_name)
     df = df.dropna()
     df.columns = df.columns.str.strip()
+
     return df
+
 
 df = load_data()
 
-st.success("✅ Dataset loaded successfully!")
-
 # -------------------------------
-# RENAME COLUMNS SAFELY
+# RENAME COLUMNS
 # -------------------------------
 df.rename(columns={
     "Category": "Product_Category",
@@ -76,7 +96,6 @@ st.divider()
 # -------------------------------
 left, right = st.columns(2)
 
-# Sales Trend (Season-wise)
 monthly_sales = df.groupby("Season")["Sales"].sum().reset_index()
 
 line_fig = px.line(
@@ -89,7 +108,6 @@ line_fig = px.line(
 
 left.plotly_chart(line_fig)
 
-# Top Categories
 cat_count = df["Product_Category"].value_counts().reset_index()
 cat_count.columns = ["Category", "Count"]
 
@@ -111,7 +129,6 @@ st.divider()
 # -------------------------------
 c1, c2, c3 = st.columns(3)
 
-# Payment Pie Chart
 payment_count = df["Payment_Method"].value_counts().reset_index()
 payment_count.columns = ["Method", "Count"]
 
@@ -158,7 +175,6 @@ st.divider()
 # -------------------------------
 bottom1, bottom2 = st.columns(2)
 
-# Age Distribution
 age_fig = px.histogram(
     df,
     x="Age",
@@ -168,18 +184,18 @@ age_fig = px.histogram(
 
 bottom1.plotly_chart(age_fig)
 
-# Insights Box
 bottom2.markdown(
     """
     <div style="background-color:#f9f9f9; padding:20px; border-radius:15px;">
     <h3 style="color:#003366;">KEY INSIGHTS & RECOMMENDATIONS</h3>
     <ul>
         <li><b>High pricing</b> and <b>delivery delays</b> are major reasons for cart abandonment.</li>
-        <li>Introduce discounts and seasonal offers to reduce drop-offs.</li>
+        <li>Introduce discounts and offers to reduce drop-offs.</li>
         <li>Improve delivery speed to boost customer satisfaction.</li>
-        <li>Provide more payment methods for smoother checkout.</li>
+        <li>Provide multiple payment options for smoother checkout.</li>
     </ul>
     </div>
     """,
     unsafe_allow_html=True
 )
+
