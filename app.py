@@ -24,7 +24,7 @@ st.markdown(
 # -------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Shopping Trends And Customer Behaviour Dataset.csv")
+    df = pd.read_csv("Shopping.csv")
     df = df.dropna()
     df.columns = df.columns.str.strip()
     return df
