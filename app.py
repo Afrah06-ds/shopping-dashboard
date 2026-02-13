@@ -20,29 +20,32 @@ st.markdown(
 )
 
 # -------------------------------
-# LOAD DATASET
+# LOAD DATASET (CACHED)
 # -------------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Shopping.csv")
+    df = pd.read_csv("shopping.csv")   # ✅ keep filename small + lowercase
     df = df.dropna()
     df.columns = df.columns.str.strip()
     return df
 
 df = load_data()
 
-# Rename columns for easy use
+st.success("✅ Dataset loaded successfully!")
+
+# -------------------------------
+# RENAME COLUMNS SAFELY
+# -------------------------------
 df.rename(columns={
     "Category": "Product_Category",
     "Payment Method": "Payment_Method",
     "Purchase Amount (USD)": "Sales",
-    "Customer ID": "Customer_ID",
-    "Gender": "Gender",
-    "Age": "Age",
-    "Season": "Season"
+    "Customer ID": "Customer_ID"
 }, inplace=True)
 
-# Returning Customers
+# -------------------------------
+# RETURNING CUSTOMER FLAG
+# -------------------------------
 df["Returning_Customer"] = df.duplicated("Customer_ID")
 
 # -------------------------------
@@ -60,20 +63,20 @@ avg_rating = 4.2         # Example rating
 # -------------------------------
 col1, col2, col3, col4, col5 = st.columns(5)
 
-col1.metric("👥 Total Customers", f"{total_customers}")
+col1.metric("👥 Total Customers", total_customers)
 col2.metric("💰 Total Sales", f"${total_sales:,.0f}")
 col3.metric("🛒 Cart Abandonment Rate", f"{cart_abandon_rate}%")
 col4.metric("🔁 Returning Customers", f"{(returning_customers/total_customers)*100:.0f}%")
-col5.metric("⭐ Average Rating", f"{avg_rating}/5")
+col5.metric("⭐ Avg Rating", f"{avg_rating}/5")
 
-st.write("")
+st.divider()
 
 # -------------------------------
 # SALES TREND + TOP CATEGORIES
 # -------------------------------
 left, right = st.columns(2)
 
-# Sales Trend
+# Sales Trend (Season-wise)
 monthly_sales = df.groupby("Season")["Sales"].sum().reset_index()
 
 line_fig = px.line(
@@ -84,7 +87,7 @@ line_fig = px.line(
     title="📈 Sales Trend Over Time"
 )
 
-left.plotly_chart(line_fig, use_container_width=True)
+left.plotly_chart(line_fig)
 
 # Top Categories
 cat_count = df["Product_Category"].value_counts().reset_index()
@@ -99,16 +102,16 @@ bar_fig = px.bar(
     text="Count"
 )
 
-right.plotly_chart(bar_fig, use_container_width=True)
+right.plotly_chart(bar_fig)
 
-st.write("")
+st.divider()
 
 # -------------------------------
 # PAYMENT PIE + FUNNEL + GENDER
 # -------------------------------
 c1, c2, c3 = st.columns(3)
 
-# Payment Methods Pie Chart
+# Payment Pie Chart
 payment_count = df["Payment_Method"].value_counts().reset_index()
 payment_count.columns = ["Method", "Count"]
 
@@ -119,9 +122,9 @@ pie_fig = px.pie(
     title="💳 Payment Methods Used"
 )
 
-c1.plotly_chart(pie_fig, use_container_width=True)
+c1.plotly_chart(pie_fig)
 
-# Funnel Chart (Example Stages)
+# Funnel Chart
 stages = ["Website Visits", "Added to Cart", "Checkout Started", "Purchased"]
 values = [50000, 16000, 10800, 7500]
 
@@ -133,9 +136,9 @@ funnel_fig = go.Figure(go.Funnel(
 
 funnel_fig.update_layout(title="🛍 Purchase Funnel")
 
-c2.plotly_chart(funnel_fig, use_container_width=True)
+c2.plotly_chart(funnel_fig)
 
-# Gender Split Chart
+# Gender Split
 gender_count = df["Gender"].value_counts().reset_index()
 gender_count.columns = ["Gender", "Count"]
 
@@ -146,9 +149,9 @@ gender_fig = px.bar(
     title="👤 Customer Gender Split"
 )
 
-c3.plotly_chart(gender_fig, use_container_width=True)
+c3.plotly_chart(gender_fig)
 
-st.write("")
+st.divider()
 
 # -------------------------------
 # AGE DEMOGRAPHICS + INSIGHTS
@@ -160,21 +163,21 @@ age_fig = px.histogram(
     df,
     x="Age",
     nbins=10,
-    title="📌 Customer Demographics (Age Distribution)"
+    title="📌 Customer Age Distribution"
 )
 
-bottom1.plotly_chart(age_fig, use_container_width=True)
+bottom1.plotly_chart(age_fig)
 
 # Insights Box
 bottom2.markdown(
     """
-    <div style="background-color:#f2f2f2; padding:20px; border-radius:12px;">
+    <div style="background-color:#f9f9f9; padding:20px; border-radius:15px;">
     <h3 style="color:#003366;">KEY INSIGHTS & RECOMMENDATIONS</h3>
     <ul>
-        <li>Customers abandon carts mainly due to <b>high pricing</b> and <b>delivery delays</b>.</li>
-        <li>Provide discounts and offers to reduce abandonment.</li>
-        <li>Improve delivery speed to boost satisfaction.</li>
-        <li>Enhance payment options for smoother checkout.</li>
+        <li><b>High pricing</b> and <b>delivery delays</b> are major reasons for cart abandonment.</li>
+        <li>Introduce discounts and seasonal offers to reduce drop-offs.</li>
+        <li>Improve delivery speed to boost customer satisfaction.</li>
+        <li>Provide more payment methods for smoother checkout.</li>
     </ul>
     </div>
     """,
